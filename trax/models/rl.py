@@ -20,6 +20,14 @@ from trax import layers as tl
 from trax import models
 
 
+def _Batch(x, batch_axes):
+  if batch_axes is None:
+    return x
+  if isinstance(x, list) and not x:
+    return []
+  return tl.BatchLeadingAxes(x, n_last_axes_to_keep=batch_axes)
+
+
 def Policy(
     policy_distribution,
     body=None,
@@ -33,10 +41,6 @@ def Policy(
     body = lambda mode: []
   if normalizer is None:
     normalizer = lambda mode: []
-  if batch_axes is None:
-    batch = lambda x: x
-  else:
-    batch = lambda x: tl.BatchLeadingAxes(x, n_last_axes_to_keep=batch_axes)
 
   head_kwargs = {}
   if head_init_range is not None:
@@ -45,8 +49,8 @@ def Policy(
     )
 
   return tl.Serial(
-      batch(normalizer(mode=mode)),
-      batch(body(mode=mode)),
+      _Batch(normalizer(mode=mode), batch_axes),
+      _Batch(body(mode=mode), batch_axes),
       tl.Dense(policy_distribution.n_inputs, **head_kwargs),
   )
 
@@ -67,10 +71,6 @@ def Value(
     body = lambda mode: []
   if normalizer is None:
     normalizer = lambda mode: []
-  if batch_axes is None:
-    batch = lambda x: x
-  else:
-    batch = lambda x: tl.BatchLeadingAxes(x, n_last_axes_to_keep=batch_axes)
 
   def ActionInjector(mode):
     if inject_actions:
@@ -98,8 +98,8 @@ def Value(
       return []
 
   return tl.Serial(
-      batch(normalizer(mode=mode)),
-      batch(body(mode=mode)),
+      _Batch(normalizer(mode=mode), batch_axes),
+      _Batch(body(mode=mode), batch_axes),
       ActionInjector(mode=mode),
       tl.Dense(1),
   )
